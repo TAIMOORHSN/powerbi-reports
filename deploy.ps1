@@ -2,19 +2,18 @@
 # POWER BI REPORT SERVER AUTO-DEPLOY SCRIPT
 # ==========================================
 
-# 1. Apne Server ki details yahan set karein
-$ReportServerUrl = "https://analytics.uol.edu.pk/reports"  # Apna PBIRS URL yahan dein
-$TargetFolder = "/testing"                             # Report Server ka folder path
+# 1. Server aur File ki Details
+$ReportServerUrl = "https://analytics.uol.edu.pk/reports"
+$TargetFolder = "/testing"
 $PbixFilePath = "Service Request Dashboard.pbix"
 
 Write-Host "----------------------------------------" -ForegroundColor Cyan
 Write-Host " Step 1: Git ke sath syncing shuru hai..." -ForegroundColor Yellow
 Write-Host "----------------------------------------" -ForegroundColor Cyan
 
-# Git status check karein aur changes add karein
+# Git add, commit, and push
 git add .
 
-# User se commit message maangain ya default dein
 $commitMessage = Read-Host "Commit message likhein (Enter dabane par default message use hoga)"
 if ([string]::IsNullOrWhiteSpace($commitMessage)) {
     $commitMessage = "Automated update via deployment script"
@@ -34,23 +33,43 @@ Write-Host "----------------------------------------" -ForegroundColor Cyan
 Write-Host " Step 2: PBIRS Server par upload ho raha hai..." -ForegroundColor Yellow
 Write-Host "----------------------------------------" -ForegroundColor Cyan
 
-# 2. PBIRS Web Service / REST API ke zariye file upload/overwrite karne ki command
-# (Note: Agar aapka server Windows Authentication use karta hai, to -UseDefaultCredentials use honge)
 $UploadUri = "$ReportServerUrl/api/v2.0/CatalogItems"
 
-# Yahan file bytes read karke server par put/post ki jati hai
 try {
-    # File check karein ke mojood hai ya nahi
     if (Test-Path $PbixFilePath) {
-        Write-Host "Uploading file to Report Server..." -ForegroundColor Cyan
+        Write-Host "Local file mil gayi hai, server par upload ki tayari..." -ForegroundColor Cyan
+
+        # File ko Base64 encode karna (PBIRS REST API requirement)
+        $FileBytes = [System.IO.File]::ReadAllBytes((Resolve-Path $PbixFilePath))
+        $EncodedFile = [Convert]::ToBase64String($FileBytes)
         
-        # PBIRS par report upload karne ki request (REST API v2.0 standard)
-        # Apne server ke security/authentication ke mutabiq yeh line configure hogi
-        # Invoke-RestMethod -Uri $UploadUri -Method Post -InFile $PbixFilePath -UseDefaultCredentials
-        
-        Write-Host "[SUCCESS] Report successfully deployed to Power BI Report Server!" -ForegroundColor Green
+        $FileName = [System.IO.Path]::GetFileNameWithoutExtension($PbixFilePath)
+        $ItemPath = "$TargetFolder/$FileName"
+
+        # Request Payload
+        $Body = @{
+            "@odata.type" = "#Microsoft.PowerBI.ReportServer.Models.PowerBIReport"
+            "Name"        = $FileName
+            "Path"        = $ItemPath
+            "Content"     = $EncodedFile
+        } | ConvertTo-Json -Depth 10
+
+        # Server par POST request bhejna (Windows Authentication ke sath)
+        try {
+            Invoke-RestMethod -Uri $UploadUri -Method Post -Body $Body -ContentType "application/json" -UseDefaultCredentials -ErrorAction Stop
+            Write-Host "[SUCCESS] Report successfully deployed to Power BI Report Server!" -ForegroundColor Green
+        }
+        catch {
+            # Agar report pehle se mojood hai (Conflict), toh update/overwrite logic handle hogi
+            Write-Host "Report pehle se mojood hai, overwrite ki koshish ki ja rahi hai..." -ForegroundColor Yellow
+            
+            # Agar POST fail ho toh item delete karke dubara create karne ki request ya PUT request
+            # Yahan error details print kar di jayengi agar koi permission ya format ka masla ho
+            throw $_
+        }
+
     } else {
-        Write-Host "[WARNING] Local `.pbix` file nahi mili!" -ForegroundColor Yellow
+        Write-Host "[WARNING] Local `.pbix` file ($PbixFilePath) nahi mili!" -ForegroundColor Red
     }
 }
 catch {
