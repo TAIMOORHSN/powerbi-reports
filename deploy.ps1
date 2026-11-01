@@ -4,8 +4,20 @@
 
 # 1. Server aur File ki Details
 $ReportServerUrl = "https://analytics.uol.edu.pk/reports"
-$TargetFolder = "/testing"
-$PbixFilePath = "Service Request Dashboard.pbix"
+# 1. Target Folder Dynamic Banana
+$TargetFolder = Read-Host "PBIRS ka target folder likhein (Default: /testing)"
+if ([string]::IsNullOrWhiteSpace($TargetFolder)) {
+    $TargetFolder = "/testing"
+}
+# Agar user slash lagana bhool jaye toh khud handle kar lein
+if (-not $TargetFolder.StartsWith("/")) {
+    $TargetFolder = "/$TargetFolder"
+}
+# User se file ka naam maangna (agar khali chorein toh default use ho)
+$PbixFilePath = Read-Host "Deploy karne ke liye .pbix file ka naam likhein (maslan: 'Service Request Dashboard.pbix')"
+if ([string]::IsNullOrWhiteSpace($PbixFilePath)) {
+    $PbixFilePath = "Service Request Dashboard.pbix"
+}
 
 Write-Host "----------------------------------------" -ForegroundColor Cyan
 Write-Host " Step 1: Git ke sath syncing shuru hai..." -ForegroundColor Yellow
