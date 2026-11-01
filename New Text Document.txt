@@ -1,0 +1,15 @@
+# Parameters
+$ReportServerUrl = "http://YOUR_SERVER_NAME/Reports" # Apne PBIRS server ka URL dein
+$ReportPath = "C:\Users\Taimoor Hassan\Desktop\DATA\GIT\new data 1.pbix"
+$TargetFolder = "/Reports" # PBIRS portal ka folder path
+
+# Git Push
+Write-Host "Git Push ho raha hai..." -ForegroundColor Green
+git add .
+git commit -m "Auto-deploy commit"
+git push origin main
+
+# PBIRS Upload / Overwrite via PowerShell
+Write-Host "PBIRS Report Server par deploy ho raha hai..." -ForegroundColor Yellow
+# PBIRS REST API ya Web Service Call
+Invoke-RestMethod -Uri "$ReportServerUrl/api/v2.0/CatalogItems" -Method Post -UseDefaultCredentials ...
