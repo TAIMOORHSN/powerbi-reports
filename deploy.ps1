@@ -5,7 +5,7 @@
 # 1. Apne Server ki details yahan set karein
 $ReportServerUrl = "https://analytics.uol.edu.pk/reports"  # Apna PBIRS URL yahan dein
 $TargetFolder = "/testing"                             # Report Server ka folder path
-$PbixFilePath = "new data 1.pbix"
+$PbixFilePath = "Service Request Dashboard.pbix"
 
 Write-Host "----------------------------------------" -ForegroundColor Cyan
 Write-Host " Step 1: Git ke sath syncing shuru hai..." -ForegroundColor Yellow
