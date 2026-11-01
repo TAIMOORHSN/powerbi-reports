@@ -39,14 +39,31 @@ try {
     if (Test-Path $PbixFilePath) {
         Write-Host "Local file mil gayi hai, server par upload ki tayari..." -ForegroundColor Cyan
 
-        # File ko Base64 encode karna (PBIRS REST API requirement)
+        # File ko Base64 encode karna
         $FileBytes = [System.IO.File]::ReadAllBytes((Resolve-Path $PbixFilePath))
         $EncodedFile = [Convert]::ToBase64String($FileBytes)
         
         $FileName = [System.IO.Path]::GetFileNameWithoutExtension($PbixFilePath)
         $ItemPath = "$TargetFolder/$FileName"
 
-        # Request Payload
+        # Credentials Setup
+        $Username = "taimoor.hassan1"
+        $PasswordText = "T@imoor1?101"
+        $SecurePassword = ConvertTo-SecureString $PasswordText -AsPlainText -Force
+        $Credential = New-Object System.Management.Automation.PSCredential ($Username, $SecurePassword)
+
+        # 1. Pehle check karein ke kya report server par pehle se mojood hai?
+        $CheckUri = "$ReportServerUrl/api/v2.0/CatalogItems?`$filter=Path eq '$ItemPath'"
+        $ExistingItem = Invoke-RestMethod -Uri $CheckUri -Method Get -Credential $Credential -ErrorAction SilentlyContinue
+
+        if ($ExistingItem.value.Count -gt 0) {
+            Write-Host "Report pehle se mojood hai, purani wali delete ki ja rahi hai..." -ForegroundColor Yellow
+            $ExistingId = $ExistingItem.value[0].Id
+            $DeleteUri = "$ReportServerUrl/api/v2.0/CatalogItems($ExistingId)"
+            Invoke-RestMethod -Uri $DeleteUri -Method Delete -Credential $Credential
+        }
+
+        # 2. Nayi report upload karein
         $Body = @{
             "@odata.type" = "#Microsoft.PowerBI.ReportServer.Models.PowerBIReport"
             "Name"        = $FileName
@@ -54,19 +71,8 @@ try {
             "Content"     = $EncodedFile
         } | ConvertTo-Json -Depth 10
 
-        # Server par POST request bhejna (Windows Authentication ke sath)
-        try {
-            Invoke-RestMethod -Uri $UploadUri -Method Post -Body $Body -ContentType "application/json" -UseDefaultCredentials -ErrorAction Stop
-            Write-Host "[SUCCESS] Report successfully deployed to Power BI Report Server!" -ForegroundColor Green
-        }
-        catch {
-            # Agar report pehle se mojood hai (Conflict), toh update/overwrite logic handle hogi
-            Write-Host "Report pehle se mojood hai, overwrite ki koshish ki ja rahi hai..." -ForegroundColor Yellow
-            
-            # Agar POST fail ho toh item delete karke dubara create karne ki request ya PUT request
-            # Yahan error details print kar di jayengi agar koi permission ya format ka masla ho
-            throw $_
-        }
+        Invoke-RestMethod -Uri $UploadUri -Method Post -Body $Body -ContentType "application/json" -Credential $Credential
+        Write-Host "[SUCCESS] Report successfully deployed to Power BI Report Server!" -ForegroundColor Green
 
     } else {
         Write-Host "[WARNING] Local `.pbix` file ($PbixFilePath) nahi mili!" -ForegroundColor Red
