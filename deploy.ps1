@@ -63,9 +63,9 @@ try {
             Invoke-RestMethod -Uri $DeleteUri -Method Delete -Credential $Credential
         }
 
-        # 2. Nayi report upload karein
+        # 2. Nayi report upload karein (Updated OData type)
         $Body = @{
-            "@odata.type" = "#Microsoft.PowerBI.ReportServer.Models.PowerBIReport"
+            "@odata.type" = "#Model.PowerBIReport"
             "Name"        = $FileName
             "Path"        = $ItemPath
             "Content"     = $EncodedFile
